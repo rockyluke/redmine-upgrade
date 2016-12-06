@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Copyright (c) 2016, rockyluke
 #
@@ -28,29 +28,27 @@ EOF
 exit 0
 fi
 
-which mysqldump > /dev/null
-if [ $? -ne 0 ]
+if [ ! -x "$(command -v mysqldump)" ]
 then
     echo -e "\\033[31mPlease install mysqldump (see README.md)\\033[39m"
     exit 1
 fi
 
-which wget > /dev/null
-if [ $? -ne 0 ]
+if [ ! -x "$(command -v wget)" ]
 then
     echo -e "\\033[31mPlease install wget (see README.md)\\033[39m"
     exit 1
 fi
 
-if [ ${1} == "latest" ]
+if [ "${1}" == "latest" ]
 then
-    VERSION=`curl -s http://www.redmine.org/releases/ | awk -F "\"" '{print $8}' | grep .zip$ | sed -r 's/.*-([0-9].[0-9].[0-9])\..*/\1/g' | tail -1`
+    VERSION=$(curl -s http://www.redmine.org/releases/ | awk -F "\"" '{print $8}' | grep .zip$ | sed -r 's/.*-([0-9].[0-9].[0-9])\..*/\1/g' | tail -1)
 else
     VERSION=${1}
 fi
 
 # main variables
-DATE=`date +%Y%m%d-%Hh%M`
+DATE=$(date +%Y%m%d-%Hh%M)
 # default values
 REDMINE_PATH='/srv/redmine'
 REDMINE_USER='www-data'
@@ -69,7 +67,7 @@ if [ ! -d ${REDMINE_PATH} ]
 then
     mkdir -p ${REDMINE_PATH}
 else
-    cd ${REDMINE_PATH}
+    cd ${REDMINE_PATH} || exit 1
     # backup folder
     echo -n ' (backup, '
     if [ ! -d ${REDMINE_PATH}/backup ]
@@ -107,8 +105,8 @@ echo -e "\\033[32m OK"
 
 # backup
 echo -ne "\\033[39m-- backup database in ${REDMINE_PATH}/backup/database-${DATE}.sql"
-mysqldump ${REDMINE_DB} > ${REDMINE_PATH}/backup/database-${DATE}.sql
-if [ $? -ne 0 ]
+mysqldump ${REDMINE_DB} > "${REDMINE_PATH}/backup/database-${DATE}.sql"
+if [ ${?} -ne 0 ]
 then
     echo -e "\\033[31m KO: error with mysqldump"
     exit 1
@@ -118,8 +116,8 @@ fi
 
 # download
 echo -ne "\\033[39m-- download redmine version ${VERSION} (redmine-${VERSION}.tar.gz) in /usr/src"
-wget -q -O /usr/src/redmine-${VERSION}.tar.gz http://www.redmine.org/releases/redmine-${VERSION}.tar.gz
-if [ $? -ne 0 ]
+wget -q -O "/usr/src/redmine-${VERSION}.tar.gz http://www.redmine.org/releases/redmine-${VERSION}.tar.gz"
+if [ ${?} -ne 0 ]
 then
     echo -e "\\033[31m KO: error with wget"
     exit 1
@@ -129,7 +127,7 @@ fi
 
 # extract
 echo -ne "\\033[39m-- extract redmine version ${VERSION} (redmine-${VERSION}.tar.gz) from /usr/src in ${REDMINE_PATH}"
-tar -C ${REDMINE_PATH} -xzf /usr/src/redmine-${VERSION}.tar.gz
+tar -C ${REDMINE_PATH} -xzf "/usr/src/redmine-${VERSION}.tar.gz"
 if [ $? -ne 0 ]
 then
     echo -e "\\033[31m KO: error with tar"
@@ -140,35 +138,35 @@ fi
 
 # chown / chmod
 echo -ne "\\033[39m-- chown & chmod in ${REDMINE_PATH}"
-find ${REDMINE_PATH}/redmine-${VERSION} -type d -exec chmod 755 {} \;
-find ${REDMINE_PATH}/redmine-${VERSION} -type f -exec chmod 644 {} \;
+find "${REDMINE_PATH}/redmine-${VERSION}" -type d -exec chmod 755 {} \;
+find "${REDMINE_PATH}/redmine-${VERSION}" -type f -exec chmod 644 {} \;
 echo -n " (redmine-${VERSION}, "
-chown -R root:root ${REDMINE_PATH}/redmine-${VERSION}
+chown -R root:root "${REDMINE_PATH}/redmine-${VERSION}"
 echo -n 'files, '
-chown -R ${REDMINE_USER}:${REDMINE_GROUP} ${REDMINE_PATH}/shared/files
+chown -R "${REDMINE_USER}:${REDMINE_GROUP}" "${REDMINE_PATH}/shared/files"
 echo -n 'log, '
-chown -R ${REDMINE_USER}:${REDMINE_GROUP} ${REDMINE_PATH}/redmine-${VERSION}/log
+chown -R "${REDMINE_USER}:${REDMINE_GROUP}" "${REDMINE_PATH}/redmine-${VERSION}/log"
 echo -n 'tmp, '
-chown -R ${REDMINE_USER}:${REDMINE_GROUP} ${REDMINE_PATH}/redmine-${VERSION}/tmp
+chown -R "${REDMINE_USER}:${REDMINE_GROUP}" "${REDMINE_PATH}/redmine-${VERSION}/tmp"
 echo -n 'plugin_assets)'
-chown -R ${REDMINE_USER}:${REDMINE_GROUP} ${REDMINE_PATH}/redmine-${VERSION}/public/plugin_assets
+chown -R "${REDMINE_USER}:${REDMINE_GROUP}" "${REDMINE_PATH}/redmine-${VERSION}/public/plugin_assets"
 echo -e "\\033[32m OK"
 
 # symlink current
 echo -ne "\\033[39m-- create current symlink in ${REDMINE_PATH} (redmine-${VERSION})"
-cd ${REDMINE_PATH}
+cd ${REDMINE_PATH} || exit 1
 if [ -h ${REDMINE_PATH}/current ]
 then
     rm ${REDMINE_PATH}/current
-    ln -s redmine-${VERSION} current
+    ln -s "redmine-${VERSION}" current
 elif [ -d ${REDMINE_PATH}/current ] || [ -f ${REDMINE_PATH}/current ]
 then
     echo -e "\\033[31m KO: current is a folder or file"
     exit 1
 else
-    ln -s redmine-${VERSION} current
+    ln -s "redmine-${VERSION}" current
 fi
-cd ${REDMINE_PATH}/current
+cd "${REDMINE_PATH}/current" || exit 1
 echo -e "\\033[32m OK"
 
 # symlink configuration
@@ -179,13 +177,13 @@ echo -e "\\033[32m OK"
 
 # symlink files
 echo -ne "\\033[39m-- create files symlink in ${REDMINE_PATH}/current (redmine-${VERSION})"
-cd ${REDMINE_PATH}/current
+cd ${REDMINE_PATH}/current || exit 1
 if [ -d ${REDMINE_PATH}/current/files ]
 then
     rm -rf ${REDMINE_PATH}/current/files
 fi
 ln -s ../shared/files ${REDMINE_PATH}/current/files
-if [ $? -ne 0 ]
+if [ ${?} -ne 0 ]
 then
     echo -e "\\033[31m KO: error with tar"
     exit 1
@@ -195,24 +193,21 @@ fi
 
 # symlink themes
 echo -ne "\\033[39m-- create themes symlink in ${REDMINE_PATH}/current/public/themes (redmine-${VERSION})"
-cd ${REDMINE_PATH}/current
-for theme in `ls ${REDMINE_PATH}/shared/themes`
-do
-    echo -n " $line"
-    ln -s ../../../shared/themes/${theme} ${REDMINE_PATH}/current/public/themes/${theme}
-done
+###
+### TODO
+###
 echo -e "\\033[32m OK"
 
 # symlink plugins
 echo -ne "\\033[39m-- create plugins symlink in ${REDMINE_PATH}/current/plugins (redmine-${VERSION})"
 ###
-### missing work here...
+### TODO
 ###
 echo -e "\\033[32m OK"
 
 # bundle install
 echo -ne "\\033[39m-- bundle install in ${REDMINE_PATH}/current (redmine-${VERSION})"
-cd ${REDMINE_PATH}/current
+cd ${REDMINE_PATH}/current || exit 1
 env RAILS_ENV=${RAILS_ENV} bundle install --no-color --without development test > /dev/null
 if [ $? -ne 0 ]
 then
@@ -224,7 +219,7 @@ fi
 
 # rake generate_secret_token
 echo -ne "\\033[39m-- rake generate_secret_token in ${REDMINE_PATH}/current (redmine-${VERSION})"
-cd ${REDMINE_PATH}/current
+cd ${REDMINE_PATH}/current || exit 1
 env RAILS_ENV=${RAILS_ENV} bundle exec rake generate_secret_token
 if [ $? -ne 0 ]
 then
@@ -236,7 +231,7 @@ fi
 
 # rake db:migrate
 echo -ne "\\033[39m-- rake db:migrate in ${REDMINE_PATH}/current (redmine-${VERSION})"
-cd ${REDMINE_PATH}/current
+cd ${REDMINE_PATH}/current || exit 1
 env RAILS_ENV=${RAILS_ENV} bundle exec rake db:migrate
 if [ $? -ne 0 ]
 then
@@ -248,7 +243,7 @@ fi
 
 # rake redmine:plugins:migrate
 echo -ne "\\033[39m-- rake redmine:plugins:migrate in ${REDMINE_PATH}/current (redmine-${VERSION})"
-cd ${REDMINE_PATH}/current
+cd ${REDMINE_PATH}/current || exit 1
 env RAILS_ENV=${RAILS_ENV} bundle exec rake redmine:plugins:migrate
 if [ $? -ne 0 ]
 then
@@ -260,7 +255,7 @@ fi
 
 # rake tmp:cache:clear
 echo -ne "\\033[39m-- rake tmp:cache:clear tmp:sessions:clear in ${REDMINE_PATH}/current (redmine-${VERSION})"
-cd ${REDMINE_PATH}/current
+cd ${REDMINE_PATH}/current || exit 1
 env RAILS_ENV=${RAILS_ENV} bundle exec rake tmp:cache:clear tmp:sessions:clear
 if [ $? -ne 0 ]
 then

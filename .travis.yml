@@ -9,4 +9,4 @@ addons:
     - shellcheck
 
 script:
- - shellcheck *.sh
+ - shellcheck -e 1091,2181 upgrade.sh
